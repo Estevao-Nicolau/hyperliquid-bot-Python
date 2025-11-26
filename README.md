@@ -27,6 +27,24 @@ cp .env.example .env
 # Edit .env with your Hyperliquid testnet private key
 ```
 
+### **Local infrastructure (MongoDB + Redis)**
+
+```bash
+# Start Mongo + Redis with Docker
+docker compose up -d mongo redis
+
+# Shut them down when finished
+docker compose down
+```
+
+Environment variables (defaults already handled in code):
+
+```
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=hyperliquid_bot
+REDIS_URL=redis://localhost:6379/0
+```
+
 ### **Configuration**
 
 Create your environment file:
@@ -49,6 +67,46 @@ uv run src/run_bot.py --validate
 
 # Run specific configuration
 uv run src/run_bot.py bots/btc_conservative.yaml
+
+# Collect Binance historical candles once (example: from 2018 to 2024)
+uv run python -m src.data_pipeline.binance_collector --start-date 2018-01-01 --end-date 2024-12-31
+
+# Snapshot pattern outcomes (5% gain / 5% stop example)
+PYTHONPATH=src uv run python -m src.data_pipeline.pattern_snapshot --lookback 48 --horizon 4 --gain 0.05 --stop 0.05 --replace
+
+# Train dedicated models per pattern
+PYTHONPATH=src uv run python -m src.ml.pattern_trainer --min-samples 200
+
+### **ML signal helpers (opcional)**
+
+```bash
+# Treinar modelo baseline (ajuste os hiperparâmetros conforme necessário)
+PYTHONPATH=src uv run python -m src.ml.train --lookback 48 --horizon 4 --target-return 0.003
+
+# Rodar inferência rápida na última janela de candles
+PYTHONPATH=src uv run python -m src.ml.inference --model-path model_YYYYMMDD-HHMMSS.pkl --lookback 48
+
+# Lançar bot com checagem de ML + thresholds automáticos
+PYTHONPATH=src uv run python -m src.tools.ml_launcher --model-path model_YYYYMMDD-HHMMSS.pkl [bots/btc_conservative.yaml]
+
+# Assistente em tempo real (apenas recomendações, sem ordens)
+PYTHONPATH=src uv run python -m src.tools.trade_assistant --pattern-models "hammer:model_hammer.pkl;engulfing:model_engulfing.pkl"
+```
+
+Para ativar o gate de ML no bot defina em `.env`:
+
+```
+ML_MODEL_PATH=models/model_YYYYMMDD-HHMMSS.pkl
+ML_LOOKBACK=48
+ML_ENTER_THRESHOLD=0.6
+ML_EXIT_THRESHOLD=0.4
+ML_EVAL_INTERVAL=60
+# Se quiser mapear modelos específicos por padrão:
+# ML_PATTERN_MODELS=hammer:model_hammer.pkl;engulfing:model_engulfing.pkl
+# ML_PATTERN_GAIN_PCT=0.05
+# ML_PATTERN_STOP_PCT=0.05
+# ML_PATTERN_HORIZON=4
+```
 ```
 
 ## ⚙️ Configuration

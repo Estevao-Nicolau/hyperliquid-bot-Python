@@ -27,6 +27,7 @@ from interfaces.exchange import (
 from exchanges.hyperliquid import HyperliquidMarketData
 from core.key_manager import key_manager
 from core.risk_manager import RiskManager, RiskEvent, RiskAction, AccountMetrics
+from ml.service import MLSignalService
 
 
 class TradingEngine:
@@ -51,12 +52,19 @@ class TradingEngine:
         self.exchange: Optional[ExchangeAdapter] = None
         self.market_data: Optional[HyperliquidMarketData] = None
         self.risk_manager: Optional[RiskManager] = None
+        self.ml_service: Optional[MLSignalService] = None
 
         # State tracking
         self.current_positions: List[Position] = []
         self.pending_orders: Dict[str, Order] = {}
         self.executed_trades = 0
         self.total_pnl = 0.0
+        self._ml_signal_cache: Optional[Dict[str, Any]] = None
+        self._ml_last_eval = 0.0
+        ml_config = self.config.get("ml", {}) or {}
+        self._ml_enter_threshold = ml_config.get("enter_threshold", 0.6)
+        self._ml_exit_threshold = ml_config.get("exit_threshold", 0.4)
+        self._ml_eval_interval = ml_config.get("eval_interval", 60)
 
         # Setup logging
         self.logger = logging.getLogger(__name__)
@@ -85,6 +93,10 @@ class TradingEngine:
 
             # Initialize risk manager
             if not self._initialize_risk_manager():
+                return False
+
+            # Initialize ML service if configured
+            if not self._initialize_ml_service():
                 return False
 
             self.logger.info("✅ Trading engine initialized successfully")
@@ -164,6 +176,28 @@ class TradingEngine:
 
         except Exception as e:
             self.logger.error(f"❌ Failed to initialize risk manager: {e}")
+            return False
+
+    def _initialize_ml_service(self) -> bool:
+        """Initialize optional ML signal service"""
+
+        ml_config = self.config.get("ml", {}) or {}
+        if not ml_config.get("enabled") or not ml_config.get("model_path"):
+            return True
+
+        try:
+            self.ml_service = MLSignalService(
+                model_path=ml_config["model_path"],
+                lookback=ml_config.get("lookback", 48),
+                symbol=self.config.get("strategy", {}).get("symbol", "BTC"),
+                timeframe=self.config.get("strategy", {}).get("timeframe", "15m"),
+            )
+            self.logger.info(
+                "✅ ML signal service enabled (model: %s)", ml_config["model_path"]
+            )
+            return True
+        except Exception as exc:
+            self.logger.error(f"❌ Failed to initialize ML service: {exc}")
             return False
 
     async def start(self) -> None:
@@ -249,6 +283,28 @@ class TradingEngine:
             if self.risk_manager:
                 await self._handle_risk_events(market_data)
 
+            ml_signal = await self._evaluate_ml_signal()
+            if ml_signal:
+                probability = ml_signal.get("probability", 0.0)
+                pattern_probs = ml_signal.get("pattern_predictions") or {}
+                decision_prob = probability
+                if pattern_probs:
+                    best_pattern = max(pattern_probs.items(), key=lambda kv: kv[1])
+                    decision_prob = best_pattern[1]
+                    self.logger.info(
+                        "🤖 Melhor padrão %s prob %.3f",
+                        best_pattern[0],
+                        best_pattern[1],
+                    )
+
+                if decision_prob < self._ml_exit_threshold:
+                    self.logger.info(
+                        "🤖 Probabilidade %.2f abaixo de %.2f - aguardando",
+                        decision_prob,
+                        self._ml_exit_threshold,
+                    )
+                    return
+
             # Generate trading signals from strategy
             signals = self.strategy.generate_signals(
                 market_data, self.current_positions, balance
@@ -260,6 +316,44 @@ class TradingEngine:
 
         except Exception as e:
             self.logger.error(f"❌ Error handling price update: {e}")
+
+    async def _evaluate_ml_signal(self) -> Optional[Dict[str, Any]]:
+        """Evaluate ML signal with caching"""
+
+        if not self.ml_service:
+            return None
+
+        now = time.time()
+        if (
+            self._ml_signal_cache
+            and now - self._ml_last_eval < self._ml_eval_interval
+        ):
+            return self._ml_signal_cache
+
+        loop = asyncio.get_running_loop()
+        try:
+            signal = await loop.run_in_executor(None, self.ml_service.evaluate_signal)
+            self._ml_signal_cache = signal
+            self._ml_last_eval = now
+            probability = signal.get("probability", 0.0)
+            active_patterns = [
+                name for name, value in (signal.get("patterns") or {}).items() if value
+            ]
+            pattern_text = ", ".join(active_patterns) if active_patterns else "nenhum"
+            detail = ""
+            if signal.get("pattern_predictions"):
+                best = max(signal["pattern_predictions"].items(), key=lambda kv: kv[1])
+                detail = f" | melhor padrão {best[0]}({best[1]:.3f})"
+            self.logger.info(
+                "🤖 ML sinal: prob %.3f | padrões: %s%s",
+                probability,
+                pattern_text,
+                detail,
+            )
+            return signal
+        except Exception as exc:
+            self.logger.warning(f"⚠️ ML signal evaluation failed: {exc}")
+            return None
 
     async def _handle_risk_events(self, market_data: MarketData) -> None:
         """Handle risk management events"""

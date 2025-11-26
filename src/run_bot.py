@@ -97,6 +97,30 @@ class GridTradingBot:
             self.config.account.max_allocation_pct / 100.0
         )
 
+        ml_model_path = os.getenv("ML_MODEL_PATH")
+        pattern_models_env = os.getenv("ML_PATTERN_MODELS")
+        pattern_models = {}
+        if pattern_models_env:
+            entries = [item.strip() for item in pattern_models_env.split(";") if item.strip()]
+            for entry in entries:
+                if "=" not in entry:
+                    continue
+                name, path = entry.split("=", 1)
+                pattern_models[name.strip()] = path.strip()
+
+        ml_config = {
+            "enabled": bool(ml_model_path),
+            "model_path": ml_model_path,
+            "lookback": int(os.getenv("ML_LOOKBACK", "48")),
+            "enter_threshold": float(os.getenv("ML_ENTER_THRESHOLD", "0.6")),
+            "exit_threshold": float(os.getenv("ML_EXIT_THRESHOLD", "0.4")),
+            "eval_interval": int(os.getenv("ML_EVAL_INTERVAL", "60")),
+            "pattern_models": pattern_models,
+            "pattern_gain_pct": float(os.getenv("ML_PATTERN_GAIN_PCT", "0.05")),
+            "pattern_stop_pct": float(os.getenv("ML_PATTERN_STOP_PCT", "0.05")),
+            "pattern_horizon": int(os.getenv("ML_PATTERN_HORIZON", "4")),
+        }
+
         return {
             "exchange": {
                 "type": self.config.exchange.type,
@@ -105,6 +129,7 @@ class GridTradingBot:
             "strategy": {
                 "type": "basic_grid",  # Default to basic grid
                 "symbol": self.config.grid.symbol,
+                "timeframe": getattr(self.config.grid, "timeframe", "15m"),
                 "levels": self.config.grid.levels,
                 "range_pct": self.config.grid.price_range.auto.range_pct,
                 "total_allocation": total_allocation_usd,
@@ -125,6 +150,7 @@ class GridTradingBot:
                 ),
             },
             "log_level": self.config.monitoring.log_level,
+            "ml": ml_config,
         }
 
 
