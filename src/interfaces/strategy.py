@@ -135,3 +135,10 @@ class TradingStrategy(ABC):
     def update_config(self, new_config: Dict[str, Any]) -> None:
         """Update strategy configuration. Override for custom logic."""
         self.config.update(new_config)
+
+    def update_context(self, context: Dict[str, Any]) -> None:
+        """
+        Optional hook for passing external context (ex.: sinais de ML).
+        Estrategias podem sobrescrever para reagir antes de gerar sinais.
+        """
+        return

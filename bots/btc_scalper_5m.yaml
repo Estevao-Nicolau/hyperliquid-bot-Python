@@ -1,0 +1,38 @@
+# 5M SCALPER STRATEGY:
+# - Operação única (~US$30) usando timeframe de 5 minutos
+# - Take-profit e stop automáticos em ±2%
+# - Usa gate de ML + modelos de padrões específicos para 5m
+
+name: "btc_scalper_5m"
+active: false  # Ative este arquivo quando quiser usar o modo 5m
+
+exchange:
+  type: "hyperliquid"
+  testnet: false
+
+account:
+  max_allocation_pct: 3.0  # ~US$30 por operação (base 1k)
+
+grid:
+  symbol: "BTC"
+  levels: 1
+  timeframe: "5m"
+  price_range:
+    mode: "auto"
+    auto:
+      range_pct: 2.0
+      min_range_pct: 1.0
+      max_range_pct: 10.0
+
+risk_management:
+  stop_loss_enabled: false
+  stop_loss_pct: 8.0
+  take_profit_enabled: false
+  take_profit_pct: 25.0
+  max_drawdown_pct: 15.0
+  max_position_size_pct: 40.0
+  rebalance:
+    price_move_threshold_pct: 12.0
+
+monitoring:
+  log_level: "INFO"

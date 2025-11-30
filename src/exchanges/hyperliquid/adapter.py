@@ -206,14 +206,16 @@ class HyperliquidAdapter(ExchangeAdapter):
                 )
 
             # Extract order ID from result
-            if result and "status" in result and result["status"] == "ok":
-                if "response" in result and "data" in result["response"]:
-                    response_data = result["response"]["data"]
-                    if "statuses" in response_data and response_data["statuses"]:
-                        status_info = response_data["statuses"][0]
-                        if "resting" in status_info:
-                            order_id = str(status_info["resting"]["oid"])
-                            return order_id
+            if result and result.get("status") == "ok":
+                response_data = result.get("response", {}).get("data", {})
+                statuses = response_data.get("statuses") or []
+                if statuses:
+                    status_info = statuses[0]
+                    if "resting" in status_info:
+                        return str(status_info["resting"]["oid"])
+                    if "filled" in status_info:
+                        # full fill, no resting order ID
+                        return "filled"
 
             raise RuntimeError(f"Failed to place order: {result}")
 

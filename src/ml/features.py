@@ -18,6 +18,7 @@ INDICATOR_KEYS = [
     "bb_upper",
     "bb_lower",
     "bb_width",
+    "volume_ratio",
 ]
 
 
@@ -78,6 +79,7 @@ def compute_indicator_set(candles: List[Dict[str, Any]]) -> Dict[str, float]:
     closes = [c["close"] for c in candles]
     highs = [c["high"] for c in candles]
     lows = [c["low"] for c in candles]
+    volumes = [c.get("volume", 0.0) for c in candles]
 
     indicators: Dict[str, float] = {}
     indicators["ema_12"] = _ema(closes, 12)
@@ -88,5 +90,10 @@ def compute_indicator_set(candles: List[Dict[str, Any]]) -> Dict[str, float]:
     indicators["atr_14"] = _atr(highs, lows, closes, 14)
     bollinger = _bollinger(closes, 20)
     indicators.update(bollinger)
+    if volumes:
+        avg_volume = np.mean(volumes[:-1]) if len(volumes) > 1 else volumes[-1]
+        indicators["volume_ratio"] = volumes[-1] / max(1e-9, avg_volume)
+    else:
+        indicators["volume_ratio"] = 1.0
     # Ensure ordering for downstream consumers
     return {key: indicators[key] for key in INDICATOR_KEYS}

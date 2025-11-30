@@ -9,15 +9,15 @@ active: true  # Enable/disable this trading strategy
 
 exchange:
   type: "hyperliquid"  # Exchange type (options: "hyperliquid", "hl")
-  testnet: true        # ✅ use testnet environment
+  testnet: false       # use mainnet
 
 account:
-  max_allocation_pct: 10.0  # Uses only 10% of total account
+  max_allocation_pct: 3.0  # aprox. US$30 por operação
 
 grid:
   symbol: "BTC"    # Trading pair symbol (e.g., "BTC", "ETH", "SOL")
-  levels: 10       # Number of buy/sell orders
-  
+  levels: 1        # Apenas uma ordem, ajustada conforme sinal
+
   price_range:
     mode: "auto"
     auto:

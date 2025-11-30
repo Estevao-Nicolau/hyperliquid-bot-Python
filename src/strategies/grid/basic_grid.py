@@ -17,6 +17,12 @@ from interfaces.strategy import (
     MarketData,
     Position,
 )
+from utils.pattern_helpers import (
+    BULLISH_PATTERNS,
+    BEARISH_PATTERNS,
+    classify_pattern,
+    infer_bias,
+)
 
 
 class GridState(Enum):
@@ -87,6 +93,10 @@ class BasicGridStrategy(TradingStrategy):
         self.center_price: Optional[float] = None
         self.grid_levels: List[GridLevel] = []
         self.last_rebalance_time = 0.0
+        self.market_bias: Optional[str] = None
+        self.take_profit_pct = config.get("take_profit_pct", 0.05)
+        self.stop_loss_pct = config.get("stop_loss_pct", 0.05)
+        self.active_trade: Optional[Dict[str, Any]] = None
 
         # Performance tracking
         self.total_trades = 0
@@ -100,8 +110,12 @@ class BasicGridStrategy(TradingStrategy):
         if not self.is_active:
             return []
 
-        signals = []
         current_price = market_data.price
+
+        if self.grid_config.levels == 1:
+            return self._generate_single_trade_signals(current_price)
+
+        signals = []
 
         # Initialize grid on first run
         if self.state == GridState.INITIALIZING:
@@ -112,6 +126,155 @@ class BasicGridStrategy(TradingStrategy):
             signals.extend(self._rebalance_grid(current_price, balance))
 
         return signals
+
+    def update_context(self, context: Dict[str, Any]) -> None:
+        signal = context.get("ml_signal")
+        if not signal:
+            self.market_bias = None
+            return
+        probability = signal.get("probability", 0.0)
+        prediction_bias: Optional[str] = signal.get("pattern_bias")
+        if not prediction_bias:
+            pattern_predictions = signal.get("pattern_predictions") or {}
+            if pattern_predictions:
+                best_pattern = max(pattern_predictions.items(), key=lambda kv: kv[1])[0]
+                prediction_bias = classify_pattern(best_pattern)
+            else:
+                active = [
+                    name for name, flag in (signal.get("patterns") or {}).items() if flag
+                ]
+                prediction_bias = infer_bias(active)
+        if prediction_bias:
+            self.market_bias = prediction_bias
+            return
+        if probability >= 0.6:
+            self.market_bias = "bullish"
+        elif probability <= 0.4:
+            self.market_bias = "bearish"
+        else:
+            self.market_bias = None
+
+    def _generate_single_trade_signals(self, current_price: float) -> List[TradingSignal]:
+        signals: List[TradingSignal] = []
+        if self.active_trade:
+            exit_signal = self._check_exit_signal(current_price)
+            if exit_signal:
+                signals.append(exit_signal)
+            return signals
+
+        if not self.market_bias:
+            return signals
+
+        entry_signal = self._build_entry_signal(current_price)
+        if entry_signal:
+            signals.append(entry_signal)
+            self.state = GridState.ACTIVE
+        return signals
+
+    def _build_entry_signal(self, current_price: float) -> Optional[TradingSignal]:
+        usd_alloc = self.grid_config.total_allocation
+        # Cap por configuração explícita em metadata
+        max_usd = self.config.get("max_usd_per_trade")
+        if max_usd is not None:
+            usd_alloc = float(max_usd)
+        if usd_alloc <= 0 or current_price <= 0:
+            return None
+        size_btc = usd_alloc / current_price
+        if self.market_bias == "bullish":
+            return TradingSignal(
+                signal_type=SignalType.BUY,
+                asset=self.grid_config.symbol,
+                size=size_btc,
+                price=current_price,
+                reason="Entrada única (viés de alta)",
+                metadata={"trade_role": "entry", "bias": "bullish"},
+            )
+        if self.market_bias == "bearish":
+            return TradingSignal(
+                signal_type=SignalType.SELL,
+                asset=self.grid_config.symbol,
+                size=size_btc,
+                price=current_price,
+                reason="Entrada única (viés de baixa)",
+                metadata={"trade_role": "entry", "bias": "bearish"},
+            )
+        return None
+
+    def _check_exit_signal(self, current_price: float) -> Optional[TradingSignal]:
+        trade = self.active_trade
+        if not trade:
+            return None
+
+        bias = trade["bias"]
+        target = trade["target_price"]
+        stop = trade["stop_price"]
+
+        if bias == "bullish":
+            if current_price >= target:
+                return TradingSignal(
+                    signal_type=SignalType.SELL,
+                    asset=self.grid_config.symbol,
+                    size=trade["size"],
+                    price=None,
+                    reason="Take-profit 5%",
+                    metadata={"trade_role": "exit", "reason": "take_profit"},
+                )
+            if current_price <= stop:
+                return TradingSignal(
+                    signal_type=SignalType.SELL,
+                    asset=self.grid_config.symbol,
+                    size=trade["size"],
+                    price=None,
+                    reason="Stop automático",
+                    metadata={"trade_role": "exit", "reason": "stop_loss"},
+                )
+        elif bias == "bearish":
+            if current_price <= target:
+                return TradingSignal(
+                    signal_type=SignalType.BUY,
+                    asset=self.grid_config.symbol,
+                    size=trade["size"],
+                    price=None,
+                    reason="Take-profit 5%",
+                    metadata={"trade_role": "exit", "reason": "take_profit"},
+                )
+            if current_price >= stop:
+                return TradingSignal(
+                    signal_type=SignalType.BUY,
+                    asset=self.grid_config.symbol,
+                    size=trade["size"],
+                    price=None,
+                    reason="Stop automático",
+                    metadata={"trade_role": "exit", "reason": "stop_loss"},
+                )
+        return None
+
+    def on_trade_executed(
+        self, signal: TradingSignal, executed_price: float, executed_size: float
+    ) -> None:
+        role = signal.metadata.get("trade_role")
+        if role == "entry":
+            entry_price = executed_price or signal.price or 0.0
+            if entry_price <= 0:
+                return
+            if signal.signal_type == SignalType.BUY:
+                target = entry_price * (1 + self.take_profit_pct)
+                stop = entry_price * (1 - self.stop_loss_pct)
+                bias = "bullish"
+            else:
+                target = entry_price * (1 - self.take_profit_pct)
+                stop = entry_price * (1 + self.stop_loss_pct)
+                bias = "bearish"
+            self.active_trade = {
+                "bias": bias,
+                "size": executed_size,
+                "entry_price": entry_price,
+                "target_price": target,
+                "stop_price": stop,
+            }
+        elif role == "exit":
+            self.active_trade = None
+            self.state = GridState.INITIALIZING
 
     def _initialize_grid(
         self, current_price: float, balance: float
@@ -166,7 +329,8 @@ class BasicGridStrategy(TradingStrategy):
                     )
                 )
 
-        self.state = GridState.ACTIVE
+        if signals:
+            self.state = GridState.ACTIVE
         return signals
 
     def _create_grid_levels(
@@ -174,26 +338,44 @@ class BasicGridStrategy(TradingStrategy):
     ) -> List[GridLevel]:
         """Create grid levels with geometric spacing"""
 
-        levels = []
-        num_levels = self.grid_config.levels
-
-        # Calculate position size per level
+        levels: List[GridLevel] = []
+        num_levels = max(1, self.grid_config.levels)
         size_per_level_usd = self.grid_config.total_allocation / num_levels
 
-        # Create levels using geometric spacing (equal percentage intervals)
+        if num_levels == 1:
+            if self.market_bias == "bearish":
+                price = max_price
+                is_buy_level = False
+            elif self.market_bias == "bullish":
+                price = min_price
+                is_buy_level = True
+            else:
+                return []
+            size_btc = size_per_level_usd / price
+            levels.append(
+                GridLevel(
+                    price=price,
+                    size=size_btc,
+                    level_index=0,
+                    is_buy_level=is_buy_level,
+                )
+            )
+            return levels
+
         price_ratio = (max_price / min_price) ** (1 / (num_levels - 1))
 
         for i in range(num_levels):
             price = min_price * (price_ratio**i)
-            size_btc = size_per_level_usd / price  # Convert USD to BTC size
-
-            # Determine if this is a buy or sell level based on current price
+            size_btc = size_per_level_usd / price
             is_buy_level = price < current_price
-
-            level = GridLevel(
-                price=price, size=size_btc, level_index=i, is_buy_level=is_buy_level
+            levels.append(
+                GridLevel(
+                    price=price,
+                    size=size_btc,
+                    level_index=i,
+                    is_buy_level=is_buy_level,
+                )
             )
-            levels.append(level)
 
         return levels
 

@@ -81,7 +81,7 @@ class GridTradingBot:
         except Exception as e:
             print(f"❌ Error: {e}")
         finally:
-            if self.engine:
+            if self.engine and self.engine.running:
                 await self.engine.stop()
 
     def _convert_config(self) -> dict:
@@ -119,6 +119,22 @@ class GridTradingBot:
             "pattern_gain_pct": float(os.getenv("ML_PATTERN_GAIN_PCT", "0.05")),
             "pattern_stop_pct": float(os.getenv("ML_PATTERN_STOP_PCT", "0.05")),
             "pattern_horizon": int(os.getenv("ML_PATTERN_HORIZON", "4")),
+            "context_days": int(os.getenv("ML_CONTEXT_DAYS", "7")),
+            "pattern_confirmation": int(os.getenv("ML_PATTERN_CONFIRMATIONS", "2")),
+            "indicator_filter": {
+                "enabled": os.getenv("ML_FILTER_ENABLED", "false").lower() == "true",
+                "rsi_buy_min": float(os.getenv("ML_FILTER_RSI_BUY_MIN", "55")),
+                "rsi_sell_max": float(os.getenv("ML_FILTER_RSI_SELL_MAX", "45")),
+                "macd_margin": float(os.getenv("ML_FILTER_MACD_MARGIN", "0.0")),
+                "ema_ratio_buffer": float(os.getenv("ML_FILTER_EMA_RATIO_BUFFER", "0.0")),
+                "volume_ratio_min": float(os.getenv("ML_FILTER_VOLUME_RATIO_MIN", "0.0")),
+                "bb_width_min": float(os.getenv("ML_FILTER_BB_WIDTH_MIN", "0.0")),
+            },
+        }
+        paper_trading = os.getenv("PAPER_TRADING", "false").lower() == "true"
+        paper_cfg = {
+            "enabled": paper_trading,
+            "initial_balance": float(os.getenv("PAPER_INITIAL_BALANCE", "100.0")),
         }
 
         return {
@@ -134,6 +150,9 @@ class GridTradingBot:
                 "range_pct": self.config.grid.price_range.auto.range_pct,
                 "total_allocation": total_allocation_usd,
                 "rebalance_threshold_pct": self.config.risk_management.rebalance.price_move_threshold_pct,
+                "take_profit_pct": float(os.getenv("GRID_TAKE_PROFIT_PCT", "0.05")),
+                "stop_loss_pct": float(os.getenv("GRID_STOP_LOSS_PCT", "0.05")),
+                "max_usd_per_trade": float(os.getenv("GRID_MAX_USD", str(total_allocation_usd))),
             },
             "bot_config": {
                 # Pass through the entire config so KeyManager can look for bot-specific keys
@@ -151,6 +170,7 @@ class GridTradingBot:
             },
             "log_level": self.config.monitoring.log_level,
             "ml": ml_config,
+            "paper": paper_cfg,
         }
 
 

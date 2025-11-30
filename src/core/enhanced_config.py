@@ -142,6 +142,7 @@ class GridConfig:
     """Grid configuration"""
 
     symbol: str = "BTC"
+    timeframe: str = "15m"
     levels: int = 15  # Number of grid levels
     price_range: PriceRangeConfig = field(default_factory=PriceRangeConfig)
     position_sizing: PositionSizingConfig = field(default_factory=PositionSizingConfig)
@@ -150,8 +151,10 @@ class GridConfig:
         """Validate grid configuration"""
         if not self.symbol:
             raise ValueError("symbol cannot be empty")
-        if not 3 <= self.levels <= 50:
-            raise ValueError("levels must be between 3 and 50")
+        if not 1 <= self.levels <= 50:
+            raise ValueError("levels must be between 1 and 50")
+        if not self.timeframe:
+            raise ValueError("timeframe cannot be empty")
         self.price_range.validate()
         self.position_sizing.validate()
 

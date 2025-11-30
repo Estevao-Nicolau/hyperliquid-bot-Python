@@ -11,10 +11,12 @@ To add a new exchange:
 """
 
 from .hyperliquid import HyperliquidAdapter, HyperliquidMarketData
+from .paper import PaperExchange
 
 # Exchange registry - makes it easy to add new DEXes
 EXCHANGE_REGISTRY = {
     "hyperliquid": HyperliquidAdapter,
+    "paper": PaperExchange,
 }
 
 # Aliases for convenience
@@ -55,6 +57,10 @@ def create_exchange_adapter(exchange_type: str, config: dict):
             raise ValueError("private_key is required for Hyperliquid")
 
         return exchange_class(private_key, testnet)
+    if exchange_type == "paper":
+        symbol = config.get("symbol", "BTC")
+        initial_balance = config.get("initial_balance", 100.0)
+        return exchange_class(symbol, initial_balance)
 
     # Future exchanges will have their own initialization logic here
     # elif exchange_type == "binance":

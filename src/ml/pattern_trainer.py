@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -20,9 +20,14 @@ from ml.features import INDICATOR_KEYS
 from ml.model_store import save_model
 
 
-def load_pattern_dataset(pattern: str, min_samples: int) -> Tuple[np.ndarray, np.ndarray]:
+def load_pattern_dataset(
+    pattern: str, timeframe: Optional[str], min_samples: int
+) -> Tuple[np.ndarray, np.ndarray]:
     db = get_mongo_db()
-    cursor = db["pattern_signals"].find({"pattern": pattern})
+    query: Dict[str, Any] = {"pattern": pattern}
+    if timeframe:
+        query["timeframe"] = timeframe
+    cursor = db["pattern_signals"].find(query)
     X: List[List[float]] = []
     y: List[float] = []
 
@@ -49,8 +54,10 @@ def load_pattern_dataset(pattern: str, min_samples: int) -> Tuple[np.ndarray, np
     return np.array(X, dtype=float), np.array(y, dtype=float)
 
 
-def train_pattern_model(pattern: str, min_samples: int) -> Tuple[str, Dict[str, any]]:
-    X, y = load_pattern_dataset(pattern, min_samples)
+def train_pattern_model(
+    pattern: str, timeframe: Optional[str], min_samples: int
+) -> Tuple[str, Dict[str, any]]:
+    X, y = load_pattern_dataset(pattern, timeframe, min_samples)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.25, shuffle=True, stratify=y
@@ -77,6 +84,7 @@ def train_pattern_model(pattern: str, min_samples: int) -> Tuple[str, Dict[str, 
 
     metadata = {
         "pattern": pattern,
+        "timeframe": timeframe or "unknown",
         "samples": int(len(X)),
         "accuracy": accuracy,
         "report": report,
@@ -90,6 +98,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train per-pattern classifiers")
     parser.add_argument("--pattern", help="Specific pattern name (default: all in DB)")
     parser.add_argument("--min-samples", type=int, default=200)
+    parser.add_argument("--timeframe", help="Filter pattern signals by timeframe (e.g., 5m)")
     args = parser.parse_args()
 
     db = get_mongo_db()
@@ -101,7 +110,7 @@ def main():
     results = {}
     for pattern in patterns:
         try:
-            model_id, metadata = train_pattern_model(pattern, args.min_samples)
+            model_id, metadata = train_pattern_model(pattern, args.timeframe, args.min_samples)
             results[pattern] = {"model_id": model_id, "accuracy": metadata["accuracy"]}
             print(f"{pattern}: model saved at {model_id} (accuracy {metadata['accuracy']:.3f})")
         except ValueError as exc:

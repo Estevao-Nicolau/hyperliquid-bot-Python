@@ -107,6 +107,28 @@ ML_EVAL_INTERVAL=60
 # ML_PATTERN_STOP_PCT=0.05
 # ML_PATTERN_HORIZON=4
 ```
+
+### **Paper trading / simulações sem risco**
+
+Ative o modo paper no bot principal exportando:
+
+```
+PAPER_TRADING=true
+PAPER_INITIAL_BALANCE=100  # saldo fictício em USD
+```
+
+Depois execute `uv run src/run_bot.py` normalmente. Nenhuma ordem real é enviada e o resultado fica salvo em `paper_reports/session_*.json`.
+
+Para sessões cronometradas (ex.: 6h com US$100 e modelo de ML ativo):
+
+```bash
+PYTHONPATH=src uv run python -m src.tools.paper_session \
+  --hours 6 \
+  --initial-balance 100 \
+  --model-path models/model_YYYYMMDD-HHMMSS.pkl
+```
+
+O comando mantém o bot rodando em paper trading pelo tempo definido e imprime um resumo final (PnL, posição aberta e caminho do relatório gerado).
 ```
 
 ## ⚙️ Configuration
@@ -214,3 +236,46 @@ uv run src/run_bot.py --validate
 # Run bot in testnet mode (default)
 uv run src/run_bot.py
 ```
+### **Ambiente 5m (scalper)**
+
+Para trabalhar com o timeframe de 5 minutos:
+
+1. **Coletar candles 5m**
+   ```bash
+   PYTHONPATH=src ./venv/bin/uv run python -m src.data_pipeline.binance_collector \
+     --start-date 2020-01-01 --end-date 2020-04-01 \
+     --timeframe 5m --interval 5m
+   ```
+   (repita por intervalos menores para não estourar timeout)
+
+2. **Gerar snapshot + treinar padrões**
+   ```bash
+   PYTHONPATH=src ./venv/bin/uv run python -m src.data_pipeline.pattern_snapshot \
+     --timeframe 5m --lookback 48 --horizon 4 --gain 0.02 --stop 0.02 --replace
+
+   PYTHONPATH=src ./venv/bin/uv run python -m src.ml.pattern_trainer \
+     --timeframe 5m --min-samples 100
+   ```
+
+3. **Treinar modelo principal 5m**
+   ```bash
+   PYTHONPATH=src ./venv/bin/uv run python -m src.ml.train \
+     --timeframe 5m --lookback 48 --horizon 4 --target-return 0.02
+   ```
+
+4. **Configurar ambiente**
+   - Use `bots/btc_scalper_5m.yaml` (ordem única, range pequeno).
+   - Carregue `.env.5m` ou exporte manualmente:
+     ```
+     export ML_MODEL_PATH=models/model_20251127-192550.pkl
+     export ML_PATTERN_MODELS=hammer=...;bearish_engulfing=... (ver `.env.5m`)
+     export GRID_TAKE_PROFIT_PCT=0.02
+     export GRID_STOP_LOSS_PCT=0.02
+     ```
+
+5. **Rodar o bot em 5m**
+   ```bash
+   PYTHONPATH=src ./venv/bin/uv run python -m src.run_bot bots/btc_scalper_5m.yaml
+   ```
+
+Para voltar ao ambiente de 15 m, basta usar `bots/btc_conservative.yaml` e o `.env` padrão.

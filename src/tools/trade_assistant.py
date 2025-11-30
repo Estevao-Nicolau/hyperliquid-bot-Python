@@ -204,6 +204,7 @@ def evaluate_assistant(
         "recommendations": recommendations,
         "patterns": patterns,
         "indicators": indicators,
+        "current_price": candles[-1]["close"],
         "candle_start": candles[-1]["open_time"],
         "candle_end": candles[-1]["open_time"] + 15 * 60 * 1000,
         "weekly_return": weekly_return,
@@ -223,8 +224,11 @@ def format_recommendations(result: Dict[str, Any]) -> str:
     weekly_stats = result.get("weekly_stats", [])
 
     trend_text = "ALTA" if weekly_return > 0.01 else "BAIXA" if weekly_return < -0.01 else "LATERAL"
+    current_price = result.get("current_price", 0.0)
+
     lines = [
         f"🕒 Vela analisada: {candle_start} → {candle_end}",
+        f"💰 Preço atual BTC: {current_price:.2f}",
         f"📊 Tendência semanal: {trend_text} ({weekly_return*100:.2f}% | vol {weekly_volatility*100:.2f}%)",
         "————————————————————————————"
     ]
