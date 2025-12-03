@@ -5,8 +5,10 @@ Simple grid strategy that places buy and sell orders at regular intervals.
 This is the main business logic for grid trading.
 """
 
+import logging
 import time
-from typing import List, Dict, Optional, Any
+from collections import deque
+from typing import List, Dict, Optional, Any, Deque
 from dataclasses import dataclass
 from enum import Enum
 
@@ -76,6 +78,7 @@ class BasicGridStrategy(TradingStrategy):
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__("basic_grid", config)
+        self.logger = logging.getLogger(__name__)
 
         # Extract grid config
         self.grid_config = GridConfig(
@@ -97,6 +100,17 @@ class BasicGridStrategy(TradingStrategy):
         self.take_profit_pct = config.get("take_profit_pct", 0.05)
         self.stop_loss_pct = config.get("stop_loss_pct", 0.05)
         self.active_trade: Optional[Dict[str, Any]] = None
+        momentum_cfg = config.get("momentum") or {}
+        self.momentum_window_minutes = int(momentum_cfg.get("window_minutes", 720))
+        self.momentum_drop_thresholds = self._prepare_thresholds(
+            momentum_cfg.get("drop_thresholds", [0.05, 0.10])
+        )
+        self.momentum_rally_thresholds = self._prepare_thresholds(
+            momentum_cfg.get("rally_thresholds", [0.05, 0.10])
+        )
+        self.price_history: Deque[tuple[float, float]] = deque()
+        self.short_term_bias: Optional[str] = None
+        self.last_momentum_event: Optional[str] = None
 
         # Performance tracking
         self.total_trades = 0
@@ -111,6 +125,7 @@ class BasicGridStrategy(TradingStrategy):
             return []
 
         current_price = market_data.price
+        self._update_short_term_bias(market_data)
 
         if self.grid_config.levels == 1:
             return self._generate_single_trade_signals(current_price)
@@ -162,16 +177,19 @@ class BasicGridStrategy(TradingStrategy):
                 signals.append(exit_signal)
             return signals
 
-        if not self.market_bias:
+        bias = self._get_active_bias()
+        if not bias:
             return signals
 
-        entry_signal = self._build_entry_signal(current_price)
+        entry_signal = self._build_entry_signal(current_price, bias)
         if entry_signal:
             signals.append(entry_signal)
             self.state = GridState.ACTIVE
         return signals
 
-    def _build_entry_signal(self, current_price: float) -> Optional[TradingSignal]:
+    def _build_entry_signal(
+        self, current_price: float, bias: Optional[str] = None
+    ) -> Optional[TradingSignal]:
         usd_alloc = self.grid_config.total_allocation
         # Cap por configuração explícita em metadata
         max_usd = self.config.get("max_usd_per_trade")
@@ -180,7 +198,8 @@ class BasicGridStrategy(TradingStrategy):
         if usd_alloc <= 0 or current_price <= 0:
             return None
         size_btc = usd_alloc / current_price
-        if self.market_bias == "bullish":
+        bias = bias or self._get_active_bias()
+        if bias == "bullish":
             return TradingSignal(
                 signal_type=SignalType.BUY,
                 asset=self.grid_config.symbol,
@@ -189,7 +208,7 @@ class BasicGridStrategy(TradingStrategy):
                 reason="Entrada única (viés de alta)",
                 metadata={"trade_role": "entry", "bias": "bullish"},
             )
-        if self.market_bias == "bearish":
+        if bias == "bearish":
             return TradingSignal(
                 signal_type=SignalType.SELL,
                 asset=self.grid_config.symbol,
@@ -462,3 +481,62 @@ class BasicGridStrategy(TradingStrategy):
                 "total_allocation": self.grid_config.total_allocation,
             },
         }
+
+    def _prepare_thresholds(self, values: Any) -> List[float]:
+        if isinstance(values, (int, float)):
+            values = [float(values)]
+        values = [float(v) for v in values if float(v) > 0]
+        return sorted(values, reverse=True) if values else [0.05]
+
+    def _update_short_term_bias(self, market_data: MarketData) -> None:
+        timestamp = market_data.timestamp or time.time()
+        price = market_data.price
+        if price <= 0:
+            return
+        window_seconds = self.momentum_window_minutes * 60
+        self.price_history.append((timestamp, price))
+        cutoff = timestamp - window_seconds
+        while self.price_history and self.price_history[0][0] < cutoff:
+            self.price_history.popleft()
+        if len(self.price_history) < 2:
+            self.short_term_bias = None
+            return
+        prices = [p for _, p in self.price_history]
+        max_price = max(prices)
+        min_price = min(prices)
+        drop_pct = (max_price - price) / max_price if max_price else 0.0
+        rally_pct = (price - min_price) / min_price if min_price else 0.0
+
+        drop_hit = next(
+            (thr for thr in self.momentum_drop_thresholds if drop_pct >= thr), None
+        )
+        rally_hit = next(
+            (thr for thr in self.momentum_rally_thresholds if rally_pct >= thr), None
+        )
+        if drop_hit:
+            self.short_term_bias = "bearish"
+            event = f"drop_{drop_hit}"
+            if self.last_momentum_event != event:
+                self.logger.info(
+                    "⚡ Queda rápida detectada: %.2f%% nas últimas %d min",
+                    drop_pct * 100,
+                    self.momentum_window_minutes,
+                )
+                self.last_momentum_event = event
+            return
+        if rally_hit:
+            self.short_term_bias = "bullish"
+            event = f"rally_{rally_hit}"
+            if self.last_momentum_event != event:
+                self.logger.info(
+                    "⚡ Alta rápida detectada: %.2f%% nas últimas %d min",
+                    rally_pct * 100,
+                    self.momentum_window_minutes,
+                )
+                self.last_momentum_event = event
+            return
+        self.short_term_bias = None
+        self.last_momentum_event = None
+
+    def _get_active_bias(self) -> Optional[str]:
+        return self.market_bias or self.short_term_bias

@@ -1,0 +1,30 @@
+EXECUTE ESTES COMANDOS NO TERMINAL (um por um):
+
+1. Adicionar arquivos:
+   git add .
+
+2. Fazer commit:
+   git commit -m "feat: Phase 1 TDD - 56 tests + comprehensive documentation
+
+- Add 56 unit tests for configuration validation and precision
+  - 30+ configuration validation tests (test_enhanced_config.py)
+  - 20+ precision/tick size tests (test_hl_adapter_precision.py)
+  - 2+ engine filter tests (test_engine_filters.py)
+- Create comprehensive documentation (11 guides)
+- Add setup scripts for multiple platforms
+- Add requirements.txt for pip installation
+- Update pyproject.toml with pytest in main dependencies
+- Update README.md with 3 setup options
+- Add tests/conftest.py for pytest path configuration
+- All 56 tests passing (100% success rate)"
+
+3. Verificar commit:
+   git log --oneline -5
+
+4. Push para GitHub:
+   git push origin main
+
+5. Verificar status:
+   git status
+
+PRONTO! Seu commit foi feito com sucesso!

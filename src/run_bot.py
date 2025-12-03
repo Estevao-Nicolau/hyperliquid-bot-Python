@@ -13,7 +13,7 @@ import os
 import signal
 from pathlib import Path
 import yaml
-from typing import Optional
+from typing import Optional, List
 
 # Load .env file if it exists
 from dotenv import load_dotenv
@@ -108,6 +108,13 @@ class GridTradingBot:
                 name, path = entry.split("=", 1)
                 pattern_models[name.strip()] = path.strip()
 
+        def parse_float_list(env_name: str, default: List[float]) -> List[float]:
+            value = os.getenv(env_name)
+            if not value:
+                return default
+            parts = [item.strip() for item in value.split(",") if item.strip()]
+            return [float(p) for p in parts] if parts else default
+
         ml_config = {
             "enabled": bool(ml_model_path),
             "model_path": ml_model_path,
@@ -131,6 +138,15 @@ class GridTradingBot:
                 "bb_width_min": float(os.getenv("ML_FILTER_BB_WIDTH_MIN", "0.0")),
             },
         }
+        momentum_config = {
+            "window_minutes": int(os.getenv("MOMENTUM_WINDOW_MINUTES", "720")),
+            "drop_thresholds": parse_float_list(
+                "MOMENTUM_DROP_THRESHOLDS", [0.05, 0.10]
+            ),
+            "rally_thresholds": parse_float_list(
+                "MOMENTUM_RALLY_THRESHOLDS", [0.05, 0.10]
+            ),
+        }
         paper_trading = os.getenv("PAPER_TRADING", "false").lower() == "true"
         paper_cfg = {
             "enabled": paper_trading,
@@ -153,6 +169,7 @@ class GridTradingBot:
                 "take_profit_pct": float(os.getenv("GRID_TAKE_PROFIT_PCT", "0.05")),
                 "stop_loss_pct": float(os.getenv("GRID_STOP_LOSS_PCT", "0.05")),
                 "max_usd_per_trade": float(os.getenv("GRID_MAX_USD", str(total_allocation_usd))),
+                "momentum": momentum_config,
             },
             "bot_config": {
                 # Pass through the entire config so KeyManager can look for bot-specific keys

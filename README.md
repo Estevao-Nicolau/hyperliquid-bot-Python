@@ -9,23 +9,64 @@ You're welcome to use the best docs on Hyperliquid API via [Chainstack Developer
 ## 🚀 Quick start
 
 ### **Prerequisites**
-- [uv package manager](https://github.com/astral-sh/uv)
+- Python 3.9+ (check with `python3 --version`)
 - Hyperliquid testnet account with testnet funds (see [Chainstack Hyperliquid faucet](https://faucet.chainstack.com/hyperliquid-testnet-faucet))
 
-### **Installation**
+### **Installation (Choose One)**
+
+#### **Option 1: Using UV (Recommended - Fastest)**
 
 ```bash
 # Clone the repository
 git clone https://github.com/chainstacklabs/hyperliquid-trading-bot
 cd hyperliquid-trading-bot
 
-# Install dependencies using uv
+# Install UV (macOS with Homebrew)
+brew install uv
+
+# Sync dependencies
 uv sync
 
 # Set up environment variables
 cp .env.example .env
 # Edit .env with your Hyperliquid testnet private key
 ```
+
+#### **Option 2: Using Python Virtual Environment (No UV Required)**
+
+```bash
+# Clone the repository
+git clone https://github.com/chainstacklabs/hyperliquid-trading-bot
+cd hyperliquid-trading-bot
+
+# Run setup script
+python3 setup_env.py all
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your Hyperliquid testnet private key
+```
+
+#### **Option 3: Quick Setup Script (Automatic)**
+
+```bash
+# Clone the repository
+git clone https://github.com/chainstacklabs/hyperliquid-trading-bot
+cd hyperliquid-trading-bot
+
+# Run quick setup (installs UV automatically)
+chmod +x quick_setup.sh
+./quick_setup.sh
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your Hyperliquid testnet private key
+```
+
+**Having issues with setup?** See [SETUP.md](SETUP.md) for detailed troubleshooting.
 
 ### **Local infrastructure (MongoDB + Redis)**
 
@@ -107,6 +148,18 @@ ML_EVAL_INTERVAL=60
 # ML_PATTERN_STOP_PCT=0.05
 # ML_PATTERN_HORIZON=4
 ```
+
+### **Momentum de curto prazo**
+
+O `BasicGridStrategy` monitora uma janela deslizante de preços (padrão 720 min) para detectar quedas ou altas rápidas antes mesmo de o ML sinalizar:
+
+```
+MOMENTUM_WINDOW_MINUTES=720        # tamanho da janela (ex.: 12h)
+MOMENTUM_DROP_THRESHOLDS=0.05,0.10 # gatilhos de queda (5% e 10%)
+MOMENTUM_RALLY_THRESHOLDS=0.05,0.10# gatilhos de alta
+```
+
+Quando qualquer limiar é atingido dentro da janela, o bot seta um viés temporário (“bullish” ou “bearish”) e pode operar mesmo que a probabilidade do modelo ainda não tenha atingido 0,60. Ajuste os valores conforme seu perfil; para o modo scalper (`.env.5m`) usamos uma janela menor (480 min) para reagir mais rápido.
 
 ### **Paper trading / simulações sem risco**
 
