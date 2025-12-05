@@ -1,0 +1,44 @@
+═════════════════════════════════════════════════════════════════════════════
+🤖 RODAR BOT - INSTRUÇÕES SIMPLES
+═════════════════════════════════════════════════════════════════════════════
+
+⏱️  TEMPO: 2 MINUTOS
+
+✅ PASSO 1: Feche o terminal atual
+   └─ Clique X na aba do terminal
+
+✅ PASSO 2: Abra novo terminal
+   └─ Cmd+J no VSCode
+   └─ Clique "+"
+
+✅ PASSO 3: Cole isto (copie e cole tudo de uma vez):
+
+cd /Users/nicolaudev/hyperliquid-trading-bot && python3 src/run_bot.py --paper
+
+
+═════════════════════════════════════════════════════════════════════════════
+
+PRONTO! Bot rodando em PAPER TRADING (sem risco)
+
+Deixe rodando por 5-10 minutos para testar.
+
+Depois pressione: Ctrl+C para parar
+
+
+═════════════════════════════════════════════════════════════════════════════
+
+SE QUISER RODAR PARA REAL (depois de testar):
+
+1. Primeiro configure .env:
+   cp .env.example .env
+   nano .env  (adicione suas chaves)
+
+2. Depois rode:
+   python3 src/run_bot.py
+
+
+═════════════════════════════════════════════════════════════════════════════
+
+Documentação completa: START_BOT.txt ou RUN_BOT_GUIDE.md
+
+═════════════════════════════════════════════════════════════════════════════
