@@ -56,7 +56,14 @@ class HyperliquidMarketData:
                 else "wss://api.hyperliquid.xyz/ws"
             )
 
-            self.ws = await websockets.connect(ws_url)
+            # Configure WebSocket with longer ping/pong timeouts to avoid keepalive issues
+            self.ws = await websockets.connect(
+                ws_url,
+                ping_interval=30,      # Send ping every 30 seconds
+                ping_timeout=10,       # Wait 10 seconds for pong response
+                max_size=None,         # Allow larger messages
+                compression=None,      # Disable compression to reduce latency
+            )
             self.running = True
 
             # Only start message handler if not already running
@@ -235,7 +242,14 @@ class HyperliquidMarketData:
                 else "wss://api.hyperliquid.xyz/ws"
             )
 
-            self.ws = await websockets.connect(ws_url)
+            # Configure WebSocket with longer ping/pong timeouts to avoid keepalive issues
+            self.ws = await websockets.connect(
+                ws_url,
+                ping_interval=30,      # Send ping every 30 seconds
+                ping_timeout=10,       # Wait 10 seconds for pong response
+                max_size=None,         # Allow larger messages
+                compression=None,      # Disable compression to reduce latency
+            )
 
             print(
                 f"✅ Connected to Hyperliquid WebSocket ({'testnet' if self.testnet else 'mainnet'})"
