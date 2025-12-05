@@ -720,6 +720,9 @@ dependencies = [
     { name = "pandas" },
     { name = "psutil" },
     { name = "pymongo" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "redis" },
@@ -736,11 +739,6 @@ dev = [
     { name = "isort" },
     { name = "mypy" },
 ]
-test = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-mock" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -756,9 +754,9 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pymongo", specifier = ">=4.15.4" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
-    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.21" },
-    { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.0" },
+    { name = "pytest", specifier = ">=7.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21" },
+    { name = "pytest-mock", specifier = ">=3.0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "redis", specifier = ">=7.0.1" },
@@ -767,7 +765,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.38.0" },
     { name = "websockets", specifier = ">=15.0.1" },
 ]
-provides-extras = ["test", "dev"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "idna"

@@ -1,0 +1,69 @@
+🤖 RODAR O BOT HYPERLIQUID - RESUMO FINAL
+═════════════════════════════════════════════════════════════════════════
+
+✅ O QUE VOCÊ PRECISA
+─────────────────────────────────────────────────────────────────────────
+
+1. Chaves de API Hyperliquid
+2. Arquivo .env com as chaves
+3. Terminal com Python 3.13
+
+
+📋 CONFIGURAÇÃO RÁPIDA
+─────────────────────────────────────────────────────────────────────────
+
+1. Copie template:
+   cp .env.example .env
+
+2. Edite .env com suas chaves:
+   HYPERLIQUID_API_KEY=xyz
+   HYPERLIQUID_API_SECRET=abc
+
+
+🚀 COMANDOS PRINCIPAIS
+─────────────────────────────────────────────────────────────────────────
+
+VALIDAR CONFIG (não rodar, só verificar):
+   python3 src/run_bot.py --validate
+
+TESTAR SEM RISCO (paper trading):
+   python3 src/run_bot.py --paper
+
+RODAR PARA REAL (dinheiro real!):
+   python3 src/run_bot.py
+
+RODAR COM ESTRATÉGIA ESPECÍFICA:
+   python3 src/run_bot.py --config bots/btc_scalper_5m.yaml
+
+PARAR BOT:
+   Pressione: Ctrl + C
+
+
+📊 ESTRATÉGIAS DISPONÍVEIS
+─────────────────────────────────────────────────────────────────────────
+
+1. btc_conservative.yaml (baixo risco - recomendado)
+2. btc_scalper_5m.yaml (médio risco)
+
+
+⚠️  FLUXO SEGURO
+─────────────────────────────────────────────────────────────────────────
+
+1. Validar: python3 src/run_bot.py --validate
+2. Testar: python3 src/run_bot.py --paper (5-10 min)
+3. Rodar: python3 src/run_bot.py
+
+
+📖 DOCUMENTAÇÃO
+─────────────────────────────────────────────────────────────────────────
+
+Guia completo: RUN_BOT_GUIDE.md
+Início rápido: START_BOT.txt
+Troubleshooting: docs/TROUBLESHOOTING.md
+
+
+═════════════════════════════════════════════════════════════════════════
+
+Comande:  python3 src/run_bot.py --help  para ver todas as opções
+
+═════════════════════════════════════════════════════════════════════════

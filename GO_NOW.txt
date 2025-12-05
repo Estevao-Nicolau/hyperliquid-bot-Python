@@ -1,0 +1,46 @@
+═════════════════════════════════════════════════════════════════════════════
+🚀 VAMOS LÁ - PRÓXIMOS PASSOS
+═════════════════════════════════════════════════════════════════════════════
+
+AGORA:
+
+Terminal novo → Execute isto:
+
+cd /Users/nicolaudev/hyperliquid-trading-bot && \
+git add . && \
+git commit -m "refactor: clean up and add bot documentation" && \
+git push origin main
+
+✅ Pronto! Enviado para GitHub!
+
+
+DEPOIS:
+
+1. Verifique em GitHub que commit aparece:
+   https://github.com/Estevao-Nicolau/hyperliquid-bot-Python
+
+2. Configure .env:
+   cp .env.example .env
+   nano .env  # adicione suas chaves
+
+3. Teste sem risco:
+   python3 src/run_bot.py --paper  (5-10 min)
+
+4. Rode para real:
+   python3 src/run_bot.py
+
+
+═════════════════════════════════════════════════════════════════════════════
+
+3 COMANDOS RESUMIDOS:
+
+GIT:      git add . && git commit -m "refactor" && git push origin main
+CONFIG:   cp .env.example .env && nano .env
+BOT:      python3 src/run_bot.py
+
+
+═════════════════════════════════════════════════════════════════════════════
+
+✅ Documentação completa em NEXT_STEPS_FINAL.md
+
+═════════════════════════════════════════════════════════════════════════════

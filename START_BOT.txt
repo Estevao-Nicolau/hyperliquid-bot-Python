@@ -1,0 +1,127 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║                   🤖 RODAR BOT EM 3 PASSOS                              ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+✅ PASSO 1: CONFIGURAR CREDENCIAIS
+═══════════════════════════════════════════════════════════════════════════
+
+Copie o template:
+    
+    cp .env.example .env
+
+Edite com suas chaves Hyperliquid:
+    
+    nano .env
+
+Procure por:
+    HYPERLIQUID_API_KEY=sua_chave_aqui
+    HYPERLIQUID_API_SECRET=seu_secret_aqui
+
+Salve: Ctrl+O, Enter, Ctrl+X
+
+
+✅ PASSO 2: TESTAR SEM RISCO (PAPER TRADING)
+═══════════════════════════════════════════════════════════════════════════
+
+Execute:
+    
+    cd /Users/nicolaudev/hyperliquid-trading-bot
+    python3 src/run_bot.py --paper
+
+Vai mostrar:
+    ✅ Paper Trading Mode ATIVO
+    💻 Usando exchange simulada
+    📊 Simulando orders
+    ⏱️  Deixar rodando por 5-10 min
+    
+Parar: Ctrl+C
+
+
+✅ PASSO 3: RODAR PARA REAL
+═══════════════════════════════════════════════════════════════════════════
+
+Depois que testar em paper trading:
+
+    python3 src/run_bot.py
+
+Vai conectar ao Hyperliquid e:
+    💰 Checar saldo da conta
+    📍 Buscar preço atual do BTC
+    🏪 Criar ordens grid
+    ✅ Começar a tradear
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+⚠️  IMPORTANTE
+═══════════════════════════════════════════════════════════════════════════
+
+❌ NÃO comece direto em mainnet com dinheiro real
+✅ SEMPRE teste em paper trading primeiro
+✅ SEMPRE valide a config
+✅ SÓ use o dinheiro que pode perder
+✅ Monitore os primeiros 30 minutos
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+🎯 ESCOLHA A ESTRATÉGIA
+═══════════════════════════════════════════════════════════════════════════
+
+O bot inclui 2 estratégias:
+
+1. CONSERVATIVE (recomendado):
+   python3 src/run_bot.py --config bots/btc_conservative.yaml
+   
+   Características:
+   - Risco BAIXO
+   - Range pequeno (±5%)
+   - Bom para começar
+
+2. SCALPER 5MIN:
+   python3 src/run_bot.py --config bots/btc_scalper_5m.yaml
+   
+   Características:
+   - Risco MÉDIO
+   - Mais agressivo
+   - Para trading ativo
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+🚀 COMEÇAR AGORA
+═══════════════════════════════════════════════════════════════════════════
+
+Terminal:
+
+    cd /Users/nicolaudev/hyperliquid-trading-bot
+    python3 src/run_bot.py --paper
+
+Isso vai rodar em modo simulado (sem risco).
+
+Depois, altere para:
+
+    python3 src/run_bot.py
+
+E começará a tradear de verdade!
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+📖 DOCUMENTAÇÃO
+═══════════════════════════════════════════════════════════════════════════
+
+Guia completo:
+    RUN_BOT_GUIDE.md
+
+Problemas:
+    docs/TROUBLESHOOTING.md
+
+Arquitetura:
+    docs/ARCHITECTURE.md
+
+
+═══════════════════════════════════════════════════════════════════════════
